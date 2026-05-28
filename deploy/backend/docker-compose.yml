@@ -12,11 +12,6 @@ services:
       - mysql_data:/var/lib/mysql
     networks:
       - backend_net
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
   back-ventas:
     image: ${ECR_REGISTRY}/back-ventas:latest
@@ -32,8 +27,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
     depends_on:
-      mysql:
-        condition: service_healthy
+      - mysql
     ports:
       - "8080:8080"
     networks:
@@ -53,8 +47,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
     depends_on:
-      mysql:
-        condition: service_healthy
+      - mysql
     ports:
       - "8081:8081"
     networks:
