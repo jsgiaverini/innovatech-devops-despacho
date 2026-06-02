@@ -1,8 +1,19 @@
-# React + Vite
+# Frontend - Sistema de Despachos Innovatech
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación React + Vite para la gestión de órdenes de compra y despachos.
 
-Currently, two official plugins are available:
+## Desarrollo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+npm run dev
+```
+
+## Docker
+
+```bash
+docker build -t front-despacho .
+docker run -p 80:8080 -e VENTAS_HOST=localhost -e DESPACHOS_HOST=localhost front-despacho
+```
+
+Para documentación completa del proyecto, ver [README.md](../README.md) en la raíz.

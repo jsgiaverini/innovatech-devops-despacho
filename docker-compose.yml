@@ -9,6 +9,12 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     volumes:
+      # Named volume para persistencia de datos MySQL.
+      # Elegido sobre bind mount porque:
+      # 1. Docker gestiona el ciclo de vida del volumen (portabilidad)
+      # 2. Funciona igual en Windows, macOS y Linux
+      # 3. Los datos sobreviven a docker compose down (no así el contenedor)
+      # 4. Facilita backups con docker run --volumes-from
       - mysql_data:/var/lib/mysql
     networks:
       - innovatech_net
@@ -17,6 +23,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 30s
 
   back-ventas:
     build:
@@ -74,17 +81,27 @@ services:
     container_name: front_despacho
     restart: unless-stopped
     environment:
+      # Nginx envsubst reemplaza estos valores en el template al iniciar
       VENTAS_HOST: back-ventas
       DESPACHOS_HOST: back-despachos
     depends_on:
       - back-ventas
       - back-despachos
     ports:
+      # Mapea puerto 80 del host al 8080 del contenedor Nginx
       - "80:8080"
     networks:
       - innovatech_net
 
 volumes:
+  # Volumen nombrado para persistencia de MySQL.
+  # Ventajas sobre bind mount:
+  # - Portabilidad entre SO (sin rutas absolutas)
+  # - Gestión nativa por Docker (backup, restore, inspección)
+  # - Aislado del sistema de archivos del host (seguridad)
+  # La información crítica de la BD no se pierde al reiniciar contenedores
+  # porque Docker persiste el volumen independientemente del ciclo de vida
+  # del contenedor. Solo se elimina con "docker compose down -v".
   mysql_data:
 
 networks:
