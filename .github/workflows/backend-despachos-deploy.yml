@@ -9,6 +9,10 @@ on:
       - 'deploy/backend/**'
       - '.github/workflows/backend-despachos-deploy.yml'
 
+concurrency:
+  group: backend-ec2-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REPOSITORY: back-despachos
@@ -80,18 +84,23 @@ jobs:
             set -e
             sudo systemctl start docker
             sudo systemctl enable docker
+
             aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
+
             cd /home/ec2-user/innovatech-backend
+
             export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
             export DB_NAME=${{ secrets.DB_NAME }}
             export DB_USERNAME=${{ secrets.DB_USERNAME }}
             export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             export MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-            docker compose pull
-            docker compose up -d --force-recreate --remove-orphans
+
+            docker compose pull mysql back-despachos
+            docker compose up -d mysql
+
             echo "Esperando disponibilidad de MySQL..."
             for i in {1..30}; do
-              if docker exec innovatech_mysql mysqladmin ping -uroot --silent; then
+              if docker exec innovatech_mysql mysqladmin ping -uroot --silent || docker exec innovatech_mysql mysqladmin ping -uroot -p${MYSQL_ROOT_PASSWORD} --silent; then
                 echo "MySQL disponible"
                 break
               fi
@@ -99,9 +108,17 @@ jobs:
               sleep 5
             done
 
-            docker exec innovatech_mysql mysql -uroot -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME}; CREATE USER IF NOT EXISTS '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}'; ALTER USER '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}'; GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USERNAME}'@'%'; FLUSH PRIVILEGES;" || true
-            docker compose restart back-ventas back-despachos
+            if docker exec innovatech_mysql mysqladmin ping -uroot --silent; then
+              MYSQL_AUTH="-uroot"
+            else
+              MYSQL_AUTH="-uroot -p${MYSQL_ROOT_PASSWORD}"
+            fi
+
+            docker exec innovatech_mysql mysql $MYSQL_AUTH -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME}; CREATE USER IF NOT EXISTS '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}'; ALTER USER '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}'; GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USERNAME}'@'%'; FLUSH PRIVILEGES;" || true
+
+            docker compose up -d --no-deps --force-recreate back-despachos
             docker image prune -f
+
             echo "Backend Despachos desplegado correctamente en EC2"
 
       - name: Revocar SSH temporal hacia EC2 Backend
@@ -114,5 +131,3 @@ jobs:
             --port 22 \
             --cidr "${{ steps.runner-ip.outputs.ip }}/32" \
             --region "${{ env.AWS_REGION }}" || true
-
-

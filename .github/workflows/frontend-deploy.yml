@@ -9,6 +9,10 @@ on:
       - 'deploy/frontend/**'
       - '.github/workflows/frontend-deploy.yml'
 
+
+concurrency:
+  group: frontend-ec2-deploy-${{ github.ref }}
+  cancel-in-progress: false
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REPOSITORY: front-despacho
@@ -99,3 +103,4 @@ jobs:
             --port 22 \
             --cidr "${{ steps.runner-ip.outputs.ip }}/32" \
             --region "${{ env.AWS_REGION }}" || true
+
