@@ -67,7 +67,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "deploy/frontend/docker-compose.yml"
-          target: "/home/ec2-user/deploy/frontend"
+          target: "/home/ec2-user/innovatech-frontend"
           strip_components: 2
 
       - name: Desplegar en EC2 Frontend
@@ -81,7 +81,7 @@ jobs:
             sudo systemctl start docker
             sudo systemctl enable docker
             aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
-            cd /home/ec2-user/deploy/frontend
+            cd /home/ec2-user/innovatech-frontend
             export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
             export BACKEND_HOST=${{ secrets.BACKEND_PRIVATE_IP }}
             docker compose pull

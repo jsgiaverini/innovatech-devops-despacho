@@ -67,7 +67,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "deploy/backend/docker-compose.yml"
-          target: "/home/ec2-user/deploy/backend"
+          target: "/home/ec2-user/innovatech-backend"
           strip_components: 2
 
       - name: Desplegar en EC2 Backend
@@ -81,7 +81,7 @@ jobs:
             sudo systemctl start docker
             sudo systemctl enable docker
             aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
-            cd /home/ec2-user/deploy/backend
+            cd /home/ec2-user/innovatech-backend
             export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
             export DB_NAME=${{ secrets.DB_NAME }}
             export DB_USERNAME=${{ secrets.DB_USERNAME }}
@@ -89,6 +89,16 @@ jobs:
             export MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
             docker compose pull
             docker compose up -d --force-recreate --remove-orphans
+            echo "Esperando disponibilidad de MySQL..."
+            for i in {1..30}; do
+              if docker exec innovatech_mysql mysqladmin ping -uroot --silent; then
+                echo "MySQL disponible"
+                break
+              fi
+              echo "MySQL aun no disponible, intento $i/30"
+              sleep 5
+            done
+
             docker exec innovatech_mysql mysql -uroot -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME}; CREATE USER IF NOT EXISTS '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}'; ALTER USER '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}'; GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USERNAME}'@'%'; FLUSH PRIVILEGES;" || true
             docker compose restart back-ventas back-despachos
             docker image prune -f
@@ -104,3 +114,5 @@ jobs:
             --port 22 \
             --cidr "${{ steps.runner-ip.outputs.ip }}/32" \
             --region "${{ env.AWS_REGION }}" || true
+
+
