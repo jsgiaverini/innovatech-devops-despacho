@@ -1,0 +1,23 @@
+# Normalizar a LF para scripts shell (evita problemas en Linux/WSL)
+*.sh text eol=lf
+
+# Archivos de texto con detección automática
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.properties text eol=lf
+*.xml text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.env text eol=lf
+Dockerfile text eol=lf
+.gitignore text eol=lf
+
+# Binarios
+*.pdf binary
+*.docx binary
+*.png binary
+*.jpg binary
+*.jar binary
