@@ -83,10 +83,26 @@ proyecto_semestral/
 │   ├── Dockerfile                      # Multi-stage, nginx no root
 │   ├── nginx.conf.template             # Proxy reverso con env vars
 │   └── src/
-├── docker-compose.yml                  # Orquestador local
+├── aws/                                # Scripts de infraestructura AWS para ECS
+│   ├── setup-infra.sh                  #   Orquestador principal
+│   ├── 01-vpc.sh                       #   VPC y subredes
+│   ├── 02-ecr.sh                       #   Repositorios ECR
+│   ├── 03-security-groups.sh           #   4 Security Groups
+│   ├── 04-iam-roles.sh                 #   Roles IAM para ECS
+│   ├── 05-cloudwatch.sh                #   Log Groups CloudWatch
+│   ├── 06-ecs-cluster.sh               #   Cluster ECS + Service Discovery
+│   ├── 07-alb.sh                       #   ALB, Target Groups y reglas
+│   ├── 08-ecs-services.sh              #   Task Definitions y ECS Services
+│   └── task-definitions/               #   Definiciones JSON de tareas
+│       ├── frontend-task.json
+│       ├── back-ventas-task.json
+│       ├── back-despachos-task.json
+│       └── mysql-task.json
+├── docker-compose.yml                  # Orquestador local (desarrollo)
 ├── .env                                # Variables de entorno locales
 ├── .env.example                        # Template de variables
 ├── .gitignore
+├── INTRUCCIONES MANUALES.docx          # Instrucciones manuales para EP3
 └── README.md
 ```
 
@@ -207,7 +223,7 @@ export BACKEND_HOST=<ip-privada-backend>
 docker compose up -d
 ```
 
-### 5. CI/CD Automático
+### 5. CI/CD Automático (EP2 - EC2)
 
 El pipeline se activa automáticamente con cada `push` a la rama `deploy`:
 1. **Build**: Construye la imagen Docker multi-stage
@@ -222,7 +238,102 @@ git push origin deploy
 # El pipeline se ejecuta automáticamente en GitHub Actions
 ```
 
+### 6. CI/CD Automático (EP3 - ECS Fargate)
+
+El pipeline para ECS sigue el mismo trigger pero despliega en ECS:
+
+```bash
+git checkout deploy
+git add .
+git commit -m "feat: actualiza servicio ECS"
+git push origin deploy
+```
+
+**Flujo ECS:** `[Push a deploy] → [Checkout] → [Login ECR] → [Build Docker] → [Push a ECR] → [ECS update-service --force-new-deployment]`
+
 ---
+
+## Despliegue en AWS ECS (EP3)
+
+### Arquitectura ECS + Fargate + ALB
+
+```
+                      ┌─────────────────────────────────────────────┐
+                      │            Navegador Web (puerto 80)         │
+                      └──────────────────────┬──────────────────────┘
+                                             │
+                                             ▼
+               ┌─────────────────────────────────────────────────────┐
+               │           ALB - alb-innovatech (público)            │
+               │  Reglas path-based:                                 │
+               │  ├── /                  → tg-frontend:8080          │
+               │  ├── /api/v1/ventas*    → tg-back-ventas:8080      │
+               │  └── /api/v1/despachos* → tg-back-despachos:8081    │
+               └──────────────┬──────────────────────┬───────────────┘
+                              │                      │
+                     (SG Frontend)             (SG Backend)
+                              │                      │
+               ┌──────────────▼──────┐   ┌───────────▼──────────────┐
+               │  frontend-service   │   │  back-ventas-service     │
+               │  Fargate :8080      │   │  Fargate :8080           │
+               │  ECS Fargate        │   │  ECS Fargate             │
+               └─────────────────────┘   └───────────┬──────────────┘
+                                                      │
+                                              (SG MySQL)
+                                                      │
+                                               ┌──────▼──────┐
+                                               │ mysql-service│
+                                               │ Fargate :3306│
+                                               │ innovatech   │
+                                               └─────────────┘
+```
+
+### Servicios ECS (Fargate)
+
+| Servicio | Puerto | Target Group | Health Check |
+|----------|--------|-------------|--------------|
+| frontend-service | 8080 | tg-frontend | `/` |
+| back-ventas-service | 8080 | tg-back-ventas | `/actuator/health` |
+| back-despachos-service | 8081 | tg-back-despachos | `/actuator/health` |
+| mysql-service | 3306 | (sin ALB) | mysqladmin ping |
+
+### Infraestructura AWS
+
+| Recurso | Nombre | Descripción |
+|---------|--------|-------------|
+| VPC | default o innovatech-vpc | 2 subredes públicas (us-east-1a, us-east-1b) |
+| ALB | alb-innovatech | Internet-facing, HTTP:80 |
+| Cluster ECS | innovatech-cluster | Fargate, us-east-1 |
+| Service Discovery | innovatech.local | DNS privado: mysql.innovatech.local |
+| ECR | front-despacho, back-ventas, back-despachos | Repositorios privados |
+
+### Automatización (Scripts AWS CLI)
+
+Los scripts en `aws/` automatizan toda la infraestructura:
+
+```bash
+# 1. Configurar credenciales AWS Academy
+aws configure
+
+# 2. Ejecutar script principal
+bash aws/setup-infra.sh
+
+# 3. (Opcional) Pasos individuales
+bash aws/01-vpc.sh
+bash aws/02-ecr.sh
+bash aws/03-security-groups.sh
+bash aws/04-iam-roles.sh
+bash aws/05-cloudwatch.sh
+bash aws/06-ecs-cluster.sh
+bash aws/07-alb.sh
+
+# 4. Después de hacer push de imágenes a ECR:
+bash aws/08-ecs-services.sh
+```
+
+---
+
+## Contenedorización
 
 ## Contenedorización
 
@@ -291,10 +402,16 @@ services:
 
 ## Pipeline CI/CD (GitHub Actions)
 
-### Flujo del Pipeline
+### Flujo del Pipeline (EP2 - EC2)
 
 ```
 [Push a rama deploy] → [Checkout] → [Login ECR] → [Build Docker] → [Push a ECR] → [SSH a EC2] → [Pull imagen] → [docker compose up]
+```
+
+### Flujo del Pipeline (EP3 - ECS Fargate)
+
+```
+[Push a rama deploy] → [Checkout] → [Login ECR] → [Build Docker] → [Push a ECR] → [ECS update-service]
 ```
 
 ### Triggers
@@ -307,28 +424,27 @@ Cada pipeline se activa exclusivamente con `push` en la rama `deploy` y cambios 
 | Backend Ventas | `back-Ventas_SpringBoot/**` |
 | Backend Despachos | `back-Despachos_SpringBoot/**` |
 
-### Secrets Utilizados
+### Secrets Utilizados (EP3 - ECS)
 
-Los siguientes secretos deben configurarse en GitHub Settings → Secrets and variables → Actions:
+| Secret | Descripción | ¿Obligatorio? |
+|--------|-------------|---------------|
+| `AWS_ACCESS_KEY_ID` | Access key de IAM (Lab temporales) | Sí |
+| `AWS_SECRET_ACCESS_KEY` | Secret key correspondiente | Sí |
+| `AWS_SESSION_TOKEN` | Session token (obligatorio en AWS Academy) | Sí |
+| `AWS_REGION` | Región AWS (ej: us-east-1) | Sí |
 
-- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`: Credenciales IAM temporales de AWS Academy Learner Lab con permisos ECR (push) y EC2 (SSH)
-- `AWS_REGION`: Región AWS (ej: us-east-1)
-- `ECR_REGISTRY`: URI del registry ECR (se obtiene automáticamente, pero se puede forzar si es necesario)
-- `EC2_FRONTEND_HOST`: IP pública de la instancia frontend
-- `EC2_BACKEND_HOST`: IP privada de la instancia backend
-- `BACKEND_PRIVATE_IP`: IP privada del backend (usada por frontend al desplegar)
-- `EC2_SSH_KEY`: Llave privada (.pem) para conexión SSH
-- `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD`: Credenciales de base de datos
+> **Nota**: `ECR_REGISTRY` y `ECS_CLUSTER` **no** se configuran como secrets.  
+> `ECR_REGISTRY` se obtiene dinámicamente del paso `login-ecr` en el workflow.  
+> `ECS_CLUSTER` está hardcodeado como `innovatech-cluster` en cada workflow.  
+> Las credenciales de BD (`DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD`) se pasan como variables de entorno en las Task Definitions, no como secrets de GitHub.
 
 ### Justificación Técnica
 
-- **Registro ECR vs Docker Hub**: Elegimos Amazon ECR porque:
-  - Integración nativa con AWS (no requiere tokens externos)
-  - Sin límites de pulls anónimos (Docker Hub tiene rate limits)
-  - IAM para autenticación (más seguro que tokens)
-  - Misma región que las instancias EC2 (menor latencia)
-- **Rama `deploy`**: Aislamos el pipeline de producción en una rama específica para evitar despliegues accidentales desde `main` o `develop`
-- **SSH Deploy**: Estrategia simple y directa para EC2, sin necesidad de ECS/EKS
+- **ECS Fargate vs EC2**: Fargate elimina la administración de servidores; AWS gestiona la infraestructura subyacente. Escalabilidad horizontal automática. Menor superficie de ataque al no tener que gestionar parches del SO.
+- **ALB con path-based routing**: Un solo ALB público enruta el tráfico según la ruta URL, eliminando la necesidad de Nginx como proxy inverso y simplificando la arquitectura.
+- **Service Discovery (Cloud Map)**: Los backends descubren MySQL por DNS interno (`mysql.innovatech.local`) sin necesidad de IPs fijas ni variables de entorno complejas.
+- **Registro ECR vs Docker Hub**: Amazon ECR por integración nativa con IAM, sin rate limits.
+- **Rama `deploy`**: Aislamos el pipeline de producción en una rama específica.
 
 ---
 
@@ -400,10 +516,15 @@ Los siguientes secretos deben configurarse en GitHub Settings → Secrets and va
 - Variables sensibles (contraseñas) manejadas vía secrets de GitHub
 - `.env` en `.gitignore` para evitar exponer credenciales
 - `.dockerignore` configurado para excluir archivos innecesarios del contexto de build
-- Instancia backend en subred privada sin IP pública
-- Security Groups restringen acceso solo a puertos necesarios
-- MySQL (3306) no se expone externamente: la comunicación es interna en la red Docker del backend
-- Backend expone solo puertos 8080 y 8081, permitidos únicamente desde el Security Group del Frontend
+- Security Groups siguiendo el principio de mínimo privilegio:
+  - ALB: solo HTTP(80) desde internet
+  - Frontend: solo TCP(8080) desde ALB
+  - Backend: solo TCP(8080,8081) desde ALB
+  - MySQL: solo TCP(3306) desde Backend
+- MySQL (3306) nunca se expone externamente: solo los backends pueden alcanzarlo
+- Tasks ECS corren con assignPublicIp=ENABLED pero los Security Groups bloquean acceso directo
+- Roles IAM separados: Execution Role (solo para iniciar tareas) y Task Role (sin permisos extra)
+- Logs centralizados en CloudWatch para auditoría y debugging
 - Conexión MySQL con `useSSL=false` solo para entorno controlado (cambiar a `true` en producción)
 
 ---

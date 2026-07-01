@@ -1,4 +1,4 @@
-﻿name: Backend Ventas CI/CD - Build, Push & Deploy
+﻿name: Backend Ventas CI/CD - Build, Push & Deploy ECS
 
 on:
   push:
@@ -6,16 +6,17 @@ on:
       - deploy
     paths:
       - 'back-Ventas_SpringBoot/**'
-      - 'deploy/backend/**'
       - '.github/workflows/backend-ventas-deploy.yml'
 
 concurrency:
-  group: backend-ec2-deploy-${{ github.ref }}
+  group: backend-ventas-ecs-deploy-${{ github.ref }}
   cancel-in-progress: false
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REPOSITORY: back-ventas
+  ECS_CLUSTER: innovatech-cluster
+  ECS_SERVICE: back-ventas-service
 
 jobs:
   build-and-deploy:
@@ -33,24 +34,6 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Obtener IP publica del runner
-        id: runner-ip
-        shell: bash
-        run: |
-          RUNNER_IP=$(curl -s https://checkip.amazonaws.com | tr -d '\n')
-          echo "ip=$RUNNER_IP" >> "$GITHUB_OUTPUT"
-          echo "Runner IP: $RUNNER_IP"
-
-      - name: Autorizar SSH temporal hacia EC2 Backend
-        shell: bash
-        run: |
-          aws ec2 authorize-security-group-ingress \
-            --group-id "${{ secrets.BACKEND_SG_ID }}" \
-            --protocol tcp \
-            --port 22 \
-            --cidr "${{ steps.runner-ip.outputs.ip }}/32" \
-            --region "${{ env.AWS_REGION }}" || true
-
       - name: Iniciar sesion en Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -58,76 +41,18 @@ jobs:
       - name: Build, tag y push de imagen Docker a ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: latest
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           cd back-Ventas_SpringBoot/Springboot-API-REST
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-      - name: Sincronizar docker-compose backend a EC2 Backend
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_BACKEND_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "deploy/backend/docker-compose.yml"
-          target: "/home/ec2-user/innovatech-backend"
-          strip_components: 2
-
-      - name: Desplegar en EC2 Backend
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_BACKEND_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            set -e
-            sudo systemctl start docker
-            sudo systemctl enable docker
-
-            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
-
-            cd /home/ec2-user/innovatech-backend
-
-            export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-            export DB_NAME=${{ secrets.DB_NAME }}
-            export DB_USERNAME=${{ secrets.DB_USERNAME }}
-            export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            export MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-
-            docker compose pull mysql back-ventas
-            docker compose up -d mysql
-
-            echo "Esperando disponibilidad de MySQL..."
-            for i in {1..30}; do
-              if docker exec innovatech_mysql mysqladmin ping -uroot --silent || docker exec innovatech_mysql mysqladmin ping -uroot -p${MYSQL_ROOT_PASSWORD} --silent; then
-                echo "MySQL disponible"
-                break
-              fi
-              echo "MySQL aun no disponible, intento $i/30"
-              sleep 5
-            done
-
-            if docker exec innovatech_mysql mysqladmin ping -uroot --silent; then
-              MYSQL_AUTH="-uroot"
-            else
-              MYSQL_AUTH="-uroot -p${MYSQL_ROOT_PASSWORD}"
-            fi
-
-            docker exec innovatech_mysql mysql $MYSQL_AUTH -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME}; CREATE USER IF NOT EXISTS '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}'; ALTER USER '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD}'; GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USERNAME}'@'%'; FLUSH PRIVILEGES;" || true
-
-            docker compose up -d --no-deps --force-recreate back-ventas
-            docker image prune -f
-
-            echo "Backend Ventas desplegado correctamente en EC2"
-
-      - name: Revocar SSH temporal hacia EC2 Backend
-        if: always()
-        shell: bash
+      - name: Desplegar en ECS forzando nueva deployment
         run: |
-          aws ec2 revoke-security-group-ingress \
-            --group-id "${{ secrets.BACKEND_SG_ID }}" \
-            --protocol tcp \
-            --port 22 \
-            --cidr "${{ steps.runner-ip.outputs.ip }}/32" \
-            --region "${{ env.AWS_REGION }}" || true
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}

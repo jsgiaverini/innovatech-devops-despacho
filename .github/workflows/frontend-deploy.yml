@@ -1,4 +1,4 @@
-﻿name: Frontend CI/CD - Build, Push & Deploy
+﻿name: Frontend CI/CD - Build, Push & Deploy ECS
 
 on:
   push:
@@ -6,16 +6,17 @@ on:
       - deploy
     paths:
       - 'front_despacho/**'
-      - 'deploy/frontend/**'
       - '.github/workflows/frontend-deploy.yml'
 
-
 concurrency:
-  group: frontend-ec2-deploy-${{ github.ref }}
+  group: frontend-ecs-deploy-${{ github.ref }}
   cancel-in-progress: false
+
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   ECR_REPOSITORY: front-despacho
+  ECS_CLUSTER: innovatech-cluster
+  ECS_SERVICE: frontend-service
 
 jobs:
   build-and-deploy:
@@ -33,24 +34,6 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Obtener IP publica del runner
-        id: runner-ip
-        shell: bash
-        run: |
-          RUNNER_IP=$(curl -s https://checkip.amazonaws.com | tr -d '\n')
-          echo "ip=$RUNNER_IP" >> "$GITHUB_OUTPUT"
-          echo "Runner IP: $RUNNER_IP"
-
-      - name: Autorizar SSH temporal hacia EC2 Frontend
-        shell: bash
-        run: |
-          aws ec2 authorize-security-group-ingress \
-            --group-id "${{ secrets.FRONTEND_SG_ID }}" \
-            --protocol tcp \
-            --port 22 \
-            --cidr "${{ steps.runner-ip.outputs.ip }}/32" \
-            --region "${{ env.AWS_REGION }}" || true
-
       - name: Iniciar sesion en Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -58,49 +41,18 @@ jobs:
       - name: Build, tag y push de imagen Docker a ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: latest
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           cd front_despacho
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-      - name: Sincronizar docker-compose frontend a EC2 Frontend
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_FRONTEND_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "deploy/frontend/docker-compose.yml"
-          target: "/home/ec2-user/innovatech-frontend"
-          strip_components: 2
-
-      - name: Desplegar en EC2 Frontend
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_FRONTEND_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            set -e
-            sudo systemctl start docker
-            sudo systemctl enable docker
-            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
-            cd /home/ec2-user/innovatech-frontend
-            export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-            export BACKEND_HOST=${{ secrets.BACKEND_PRIVATE_IP }}
-            docker compose pull
-            docker compose up -d --force-recreate --remove-orphans
-            docker image prune -f
-            echo "Frontend desplegado correctamente en EC2"
-
-      - name: Revocar SSH temporal hacia EC2 Frontend
-        if: always()
-        shell: bash
+      - name: Desplegar en ECS forzando nueva deployment
         run: |
-          aws ec2 revoke-security-group-ingress \
-            --group-id "${{ secrets.FRONTEND_SG_ID }}" \
-            --protocol tcp \
-            --port 22 \
-            --cidr "${{ steps.runner-ip.outputs.ip }}/32" \
-            --region "${{ env.AWS_REGION }}" || true
-
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}

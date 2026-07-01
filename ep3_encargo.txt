@@ -1,0 +1,376 @@
+=== PAGE 1 ===
+ 
+ 
+ 2025 
+ 
+  
+Evaluación Parcial N° 3 
+Encargo con Presentación 
+Instrucciones y pauta de evaluación | Estudiante 
+  
+
+=== PAGE 2 ===
+ 
+Página 1 de 8 
+ 
+ 2025 
+ 
+Evaluación Parcial N° 3 
+Encargo con Presentación 
+Instrucciones y pauta de evaluación  
+Estudiante 
+Sigla Nombre Asignatura Tiempo Asignado % Ponderación Semana inicio  
+EP 
+ISY1101 Introducción a Herramientas Devops  6h 40%  
+ 
+1.  Instrucciones generales  
+Descripción  
+▪ La Evaluación Parcial N°3 consiste en una práctica avanzada de orquestación y automatización en la nube , donde cada dupla 
+deberá: 
+o Configurar un clúster de contenedores en AWS ECS o AWS EKS. 
+o Desplegar servicios Frontend y Backend utilizando imágenes almacenadas en ECR. 
+o Implementar autoscaling y networking asociado. 
+o Crear un pipeline CI/CD con GitHub Actions que automatice la liberación de software hacia el clúster (build → push → 
+deploy). 
+o Evaluar métricas, tiempos, logs, funcionamiento y comunicación entre servicios. 
+o Presentar y defender la arquitectura, el despliegue y el pipeline implementado. 
+▪ La evaluación combina ejecución práctica (encargo grupal) y una defensa técnica individual. 
+ 
+Contexto del caso :  
+
+=== PAGE 3 ===
+ 
+Página 2 de 8 
+ 
+ 2025 
+▪ La empresa Innovatech Chile, tras completar la etapa de contenedorización (EP2) y montar infraestructura base en AWS (EP1), 
+decide avanzar hacia la automatización y orquestación productiva. 
+▪ El equipo técnico (los estudiantes) debe ahora: 
+▪ Crear un entorno de orquestación para ejecutar la aplicación de manera escalable, tolerante a fallos y automatizable. 
+▪ Automatizar completamente los despliegues desde GitHub a través de GitHub Actions. 
+▪ Garantizar que la aplicación pueda escalar, autorecuperarse, registrar logs, balancearse y mantenerse disponible ante cambios o 
+fallos. 
+▪ Se debe utilizar únicamente ECS o EKS, según la arquitectura seleccionada por la dupla. 
+ 
+Evaluación Tipo de situación 
+evaluativa 
+Distribución de porcentajes 
+en el EP2 
+Individual/Grupal 
+Evaluación Parcial N°3 
+(40%) 
+Encargo 20% Parejas 
+Presentación 80% Individual 
+Total 100%  
+ 
+ 
+• El Encargo corresponde a la entrega de los repositorios del front y backend  Ambos son evaluados en parejas. 
+• El tiempo asignado para desarrollar esta evaluación es de 1 semanas para la elaboración del encargo y de la presentación. 
+• Las/los estudiantes inician el trabajo del encargo en el Taller de Proyectos (Taite 7), pero deben finalizarlo junto apresentación en su 
+tiempo de trabajo personal. 
+ 
+ 
+ 
+ 
+
+=== PAGE 4 ===
+ 
+Página 3 de 8 
+ 
+ 2025 
+Ítem I: Consideraciones para el Encargo 
+•1. Configuración del Clúster en AWS (IE3) 
+• La dupla debe demostrar: 
+• Creación de clúster ECS/EKS. 
+• Configuración de nodos/Capacity Providers/Fargate. 
+• Configuración de VPC, subredes y Security Groups. 
+• Roles IAM requeridos (EKS node role, ECS task role, execution role). 
+• Descripción y justificación de la arquitectura. 
+ 
+• Despliegue de Servicios Frontend + Backend (IE4) 
+La dupla debe exponer: 
+• Task Definition o Deployment configurado. 
+• Uso de imágenes desde Amazon ECR. 
+• Variables de entorno cargadas correctamente. 
+• Balanceo mediante Application Load Balancer si corresponde. 
+• Acceso por URL pública al Frontend. 
+• Comunicación correcta Front → Back vía DNS interno/ALB/Service. 
+ 
+• Configuración de Autoscaling (IE5) 
+Se debe incluir: 
+• ECS: Target Tracking (CPU/Memory). 
+• EKS: Horizontal Pod Autoscaler (HPA). 
+• Capturas de configuración. 
+• Justificación del valor elegido (ej. 50% CPU). 
+
+=== PAGE 5 ===
+ 
+Página 4 de 8 
+ 
+ 2025 
+• Evidencia de métricas o simulación de carga. 
+ 
+• Pipeline CI/CD (IE6 y IE7) 
+La dupla debe demostrar: 
+• Frontend accesible públicamente. 
+• Backend respondiendo desde el clúster. 
+• Comunicación Front → Back operativa. 
+• Logs en CloudWatch o kubectl logs. 
+• Despliegue automatizado tras commit. 
+• Comportamiento del autoscaling. 
+• Recuperación ante redeploy. 
+Presentación técnica  
+Debe explicar: 
+• Arquitectura final. 
+• Roles, redes, autoscaling, balanceadores. 
+• Métricas de pipeline (tiempo, fallos, logs). 
+• Problemas encontrados y cómo se resolvieron. 
+ 
+  
+Aspectos formales: 
+
+=== PAGE 6 ===
+ 
+Página 5 de 8 
+ 
+ 2025 
+• Formato: 
+El encargo corresponde la entrega de los repositorios debidamente documentados con sus archivos readme.me el cual debe 
+explicar todo el funcionamiento y como utilizar el proyecto  
+• Además el repositorio en su interior debe contener sus commit explicativos que permite entender cambio, fix o update en el 
+código  
+• Medio de entrega: 
+Los repositorios de la dupla deben ser entregados por AVA  
+Materiales, herramientas o insumos requeridos: 
+• Materiales y contenidos académicos entregados durante el curso. 
+• Cuenta AWS Academy  con laboratorio Learned Lab (o Educate) para el despligue del proyecto  
+• Computadores disponibles en laboratorio de proyectos (TAITE 7). 
+• Software PC :  visual Studio Code , docker desktop ,AWS cli , git   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+=== PAGE 7 ===
+ 
+Página 6 de 8 
+ 
+ 2025 
+2. Pauta de Evaluación (Rúbrica, Escala de Valoración, Lista de cotejo) 
+Categoría % logro Descripción niveles de logro 
+Muy buen desempeño 100% Demuestra un desempeño destacado, evidenciando el logro de todos los aspectos evaluados en el indicador.  
+Buen desempeño 80% Demuestra un alto desempeño del indicador, presentando pequeñas omisiones, dificultades y/o errores.  
+Desempeño aceptable  60% Demuestra un desempeño competente, evidenciando el logro de los elementos básicos del indicador, pero con 
+omisiones, dificultades o errores. 
+Desempeño incipiente  30% Presenta importantes omisiones, dificultades o errores en el desempeño, que no permiten evidenciar los 
+elementos básicos del logro del indicador, por lo que no puede ser considerado competente.  
+Desempeño no logrado 0% Presenta ausencia o incorrecto desempeño. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+=== PAGE 8 ===
+ 
+Página 7 de 8 
+ 
+ 2025 
+ 
+Indicador de Evaluación 
+Categorías de Respuesta Ponderación 
+Indicador de 
+Evaluación 
+Muy buen 
+desempeño 
+100% 
+Buen 
+desempeño 
+80% 
+Desempeño 
+aceptable 
+60% 
+Desempeño 
+incipiente 
+30% 
+Desempeño no 
+logrado 
+0% 
+Dimensión: Encargo 
+IE1. Configuración del clúster AWS (EKS/ECS) 
+Clúster 
+completamente 
+funcional, roles 
+IAM, 
+VPC/subredes/SG 
+correctos, 
+nodos/capacity 
+providers 
+operativos, 
+arquitectura clara. 
+Clúster funcional 
+con leves 
+omisiones en 
+redes, SG o roles. 
+Clúster operativo 
+parcialmente, 
+con errores 
+moderados en 
+red o IAM. 
+Clúster 
+incompleto o 
+inestable. 
+No configura clúster. 25% 
+IE2. Despliegue Frontend + Backend en el clúster 
+Servicios 
+desplegados 
+correctamente 
+desde ECR, 
+variables 
+correctas, puertos 
+y balanceador 
+operativo. 
+Servicios 
+desplegados con 
+leves errores 
+menores. 
+Servicios 
+parcialmente 
+operativos; uno 
+de los servicios 
+presenta fallas. 
+Servicios 
+inestables o con 
+errores graves. 
+No despliega servicios. 25% 
+IE3. Configuración de Autoscaling 
+Autoscaling 
+configurado 
+correctamente, 
+métricas 
+funcionando y 
+justificación del 
+umbral. 
+Autoscaling 
+funcional con leves 
+omisiones. 
+Autoscaling 
+configurado sin 
+evidencia de 
+métricas o 
+inconsistencias. 
+Autoscaling 
+incorrecto o sin 
+impacto real. 
+No configura 
+autoscaling. 10% 
+IE4. Pipeline CI/CD (build → push → deploy) 
+Pipeline 
+completamente 
+automatizado, 
+funcional, seguro 
+y documentado; 
+deploy exitoso. 
+Pipeline funcional 
+con omisiones 
+menores. 
+Pipeline parcial 
+(build/push OK, 
+deploy fallido). 
+Pipeline inestable 
+o con errores 
+graves. 
+No presenta pipeline. 15% 
+IE5. Gestión de Secrets y credenciales 
+Secrets 
+correctamente 
+utilizados, seguros 
+y bien 
+estructurados; sin 
+exposición. 
+Secrets 
+mayormente 
+correctos con 
+leves detalles. 
+Secrets 
+funcionales con 
+errores de 
+organización. 
+Secrets mal 
+configurados y 
+causan fallas. 
+No usa secrets o 
+expone credenciales. 5% 
+
+=== PAGE 9 ===
+ 
+Página 8 de 8 
+ 
+ 2025 
+ 
+ 
+IE6. Análisis de logs, métricas y tiempos del pipeline 
+Análisis completo 
+de logs, errores, 
+tiempos y 
+métricas; 
+conclusiones 
+claras. 
+Análisis 
+mayormente 
+correcto con 
+pequeños vacíos. 
+Análisis básico, 
+superficial o 
+incompleto. 
+Análisis confuso o 
+con errores. 
+No analiza logs ni 
+métricas. 10% 
+IE7. Validación funcional del clúster (Front → Back) 
+Servicios 
+operativos, 
+comunicación 
+correcta, 
+endpoints 
+funcionando, logs 
+y recuperación 
+post-deploy 
+demostrados. 
+Validación correcta 
+con leves 
+problemas. 
+Validación parcial 
+con fallas 
+moderadas. 
+Servicios con 
+fallas graves o 
+comunicación 
+incorrecta. 
+No valida 
+funcionamiento. 10% 
+Total 100% 
+
