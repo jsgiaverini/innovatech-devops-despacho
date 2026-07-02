@@ -20,11 +20,11 @@
       "environment": [
         {
           "name": "VENTAS_HOST",
-          "value": "back-ventas"
+          "value": "alb-innovatech-1338413519.us-east-1.elb.amazonaws.com"
         },
         {
           "name": "DESPACHOS_HOST",
-          "value": "back-despachos"
+          "value": "alb-innovatech-1338413519.us-east-1.elb.amazonaws.com"
         }
       ],
       "logConfiguration": {
