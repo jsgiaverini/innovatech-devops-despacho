@@ -4,8 +4,8 @@ services:
     container_name: front_despacho
     restart: unless-stopped
     environment:
-      VENTAS_HOST: ${BACKEND_HOST}
-      DESPACHOS_HOST: ${BACKEND_HOST}
+      VENTAS_HOST: ${BACKEND_HOST}:8080
+      DESPACHOS_HOST: ${BACKEND_HOST}:8081
     ports:
       - "80:8080"
     networks:

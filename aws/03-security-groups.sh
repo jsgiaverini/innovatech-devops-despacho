@@ -5,20 +5,24 @@ echo "========================================"
 echo "  03 - Security Groups"
 echo "========================================"
 
-source .env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/_functions.sh"
+load_env
 
 create_sg() {
-    local NAME=$1
-    local DESC=$2
-    local SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=$NAME" "Name=vpc-id,Values=$VPC_ID" --query "SecurityGroups[0].GroupId" --output text)
+    local NAME="$1"
+    local DESC="$2"
+    local SG_ID
+    SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=$NAME" "Name=vpc-id,Values=$VPC_ID" --query "SecurityGroups[0].GroupId" --output text)
     if [ "$SG_ID" == "None" ] || [ -z "$SG_ID" ]; then
         SG_ID=$(aws ec2 create-security-group --group-name "$NAME" --description "$DESC" --vpc-id "$VPC_ID" --query "GroupId" --output text)
         echo "Creado $NAME: $SG_ID"
     else
         echo "Ya existe $NAME: $SG_ID"
     fi
-    echo "$NAME=$SG_ID" >> .env
-    eval "$NAME=$SG_ID"
+    set_env "$NAME" "$SG_ID"
+    printf -v "$NAME" '%s' "$SG_ID"
 }
 
 create_sg "SG_ALB" "Security Group for ALB Innovatech"

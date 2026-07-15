@@ -5,7 +5,10 @@ echo "========================================"
 echo "  01 - VPC y Subredes"
 echo "========================================"
 
-source .env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/_functions.sh"
+load_env
 
 VPC_ID=$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[0].VpcId" --output text)
 
@@ -20,10 +23,10 @@ else
     echo "Usando VPC default: $VPC_ID"
 fi
 
-echo "VPC_ID=$VPC_ID" >> .env
+set_env "VPC_ID" "$VPC_ID"
 
-AZ1="us-east-1a"
-AZ2="us-east-1b"
+AZ1="${AWS_REGION}a"
+AZ2="${AWS_REGION}b"
 SUBNET1=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=availability-zone,Values=$AZ1" "Name=map-public-ip-on-launch,Values=true" --query "Subnets[0].SubnetId" --output text)
 SUBNET2=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=availability-zone,Values=$AZ2" "Name=map-public-ip-on-launch,Values=true" --query "Subnets[0].SubnetId" --output text)
 
@@ -40,8 +43,8 @@ if [ "$SUBNET2" == "None" ] || [ -z "$SUBNET2" ]; then
     aws ec2 modify-subnet-attribute --subnet-id "$SUBNET2" --map-public-ip-on-launch
 fi
 
-echo "SUBNET1=$SUBNET1" >> .env
-echo "SUBNET2=$SUBNET2" >> .env
+set_env "SUBNET1" "$SUBNET1"
+set_env "SUBNET2" "$SUBNET2"
 echo "Subred 1: $SUBNET1 ($AZ1)"
 echo "Subred 2: $SUBNET2 ($AZ2)"
 
@@ -52,7 +55,7 @@ if [ "$IGW_ID" == "None" ] || [ -z "$IGW_ID" ]; then
     aws ec2 attach-internet-gateway --internet-gateway-id "$IGW_ID" --vpc-id "$VPC_ID"
     aws ec2 create-tags --resources "$IGW_ID" --tags Key=Name,Value=innovatech-igw
 fi
-echo "IGW_ID=$IGW_ID" >> .env
+set_env "IGW_ID" "$IGW_ID"
 
 RT_ID=$(aws ec2 describe-route-tables --filters "Name=vpc-id,Values=$VPC_ID" "Name=association.main,Values=true" --query "RouteTables[0].RouteTableId" --output text)
 aws ec2 create-route --route-table-id "$RT_ID" --destination-cidr-block 0.0.0.0/0 --gateway-id "$IGW_ID" 2>/dev/null || true

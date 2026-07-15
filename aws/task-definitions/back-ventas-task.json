@@ -1,7 +1,9 @@
 {
   "family": "innovatech-back-ventas",
   "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
   "cpu": "512",
   "memory": "1024",
   "executionRoleArn": "${EXECUTION_ROLE_ARN}",
@@ -20,7 +22,7 @@
       "environment": [
         {
           "name": "DB_ENDPOINT",
-          "value": "mysql.innovatech.local"
+          "value": "${DB_ENDPOINT}"
         },
         {
           "name": "DB_PORT",
@@ -28,11 +30,11 @@
         },
         {
           "name": "DB_NAME",
-          "value": "innovatech"
+          "value": "${DB_NAME}"
         },
         {
           "name": "DB_USERNAME",
-          "value": "appuser"
+          "value": "${DB_USERNAME}"
         },
         {
           "name": "DB_PASSWORD",
@@ -43,12 +45,15 @@
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/innovatech/back-ventas",
-          "awslogs-region": "us-east-1",
+          "awslogs-region": "${AWS_REGION}",
           "awslogs-stream-prefix": "ecs"
         }
       },
       "healthCheck": {
-        "command": ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"],
+        "command": [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:8080/actuator/health || exit 1"
+        ],
         "interval": 30,
         "timeout": 5,
         "retries": 3,

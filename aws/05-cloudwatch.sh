@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/_functions.sh"
+load_env
+
 echo "========================================"
 echo "  05 - CloudWatch Log Groups"
 echo "========================================"
@@ -13,7 +18,8 @@ LOG_GROUPS=(
 )
 
 for LG in "${LOG_GROUPS[@]}"; do
-    if aws logs describe-log-groups --log-group-name-pattern "$LG" --query "logGroups[?logGroupName=='$LG'].logGroupName" --output text &>/dev/null; then
+    EXISTING=$(aws logs describe-log-groups --log-group-name-prefix "$LG" --query "logGroups[?logGroupName=='$LG'].logGroupName" --output text)
+    if [ "$EXISTING" = "$LG" ]; then
         echo "Log group $LG ya existe"
     else
         echo "Creando log group $LG..."

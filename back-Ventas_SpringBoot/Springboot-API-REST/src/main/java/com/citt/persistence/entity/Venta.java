@@ -6,6 +6,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,10 +26,11 @@ public class Venta {
     private Long idVenta;
     @NotBlank(message = "La dirección es obligatoria")
     private String direccionCompra;
-    private int valorCompra;
+    @NotNull(message = "El valor de compra es obligatorio")
+    @PositiveOrZero(message = "El valor de compra no puede ser negativo")
+    private Integer valorCompra;
     @NotNull(message = "Fecha de compra es obligatoria")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)  // Especifica el formato de fecha
     private LocalDate fechaCompra;
-    @NotNull(message = "El campo de despacho debe ser proporcionado")
-    private Boolean despachoGenerado = false;
+    private Boolean despachoGenerado;
 }

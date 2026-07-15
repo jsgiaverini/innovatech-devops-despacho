@@ -82,8 +82,8 @@ services:
     restart: unless-stopped
     environment:
       # Nginx envsubst reemplaza estos valores en el template al iniciar
-      VENTAS_HOST: back-ventas
-      DESPACHOS_HOST: back-despachos
+      VENTAS_HOST: back-ventas:8080
+      DESPACHOS_HOST: back-despachos:8081
     depends_on:
       - back-ventas
       - back-despachos
