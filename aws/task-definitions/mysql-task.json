@@ -1,7 +1,9 @@
 {
   "family": "innovatech-mysql",
   "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
   "cpu": "512",
   "memory": "1024",
   "executionRoleArn": "${EXECUTION_ROLE_ARN}",
@@ -14,17 +16,18 @@
       "portMappings": [
         {
           "containerPort": 3306,
-          "protocol": "tcp"
+          "protocol": "tcp",
+          "name": "mysql3306"
         }
       ],
       "environment": [
         {
           "name": "MYSQL_DATABASE",
-          "value": "innovatech"
+          "value": "${DB_NAME}"
         },
         {
           "name": "MYSQL_USER",
-          "value": "appuser"
+          "value": "${DB_USERNAME}"
         },
         {
           "name": "MYSQL_PASSWORD",
@@ -39,12 +42,15 @@
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/innovatech/mysql",
-          "awslogs-region": "us-east-1",
+          "awslogs-region": "${AWS_REGION}",
           "awslogs-stream-prefix": "ecs"
         }
       },
       "healthCheck": {
-        "command": ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p${MYSQL_ROOT_PASSWORD} || exit 1"],
+        "command": [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost --silent || exit 1"
+        ],
         "interval": 10,
         "timeout": 5,
         "retries": 10,

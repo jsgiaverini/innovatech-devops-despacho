@@ -3,13 +3,24 @@
 .env.*
 !.env.example
 aws/.env
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
 
 # Node / Frontend
 node_modules/
 dist/
+dist-ssr/
+coverage/
+.eslintcache
+.npm/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # Java / Maven
 target/
@@ -17,18 +28,33 @@ target/
 *.jar
 *.war
 *.ear
+.mvn/timing.properties
 
-# Logs
+# Logs y temporales
 *.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
 
 # IDEs
 .vscode/
 .idea/
 *.iml
+.classpath
+.project
+.settings/
+.sts4-cache/
 
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Infraestructura local
+.terraform/
+*.tfstate
+*.tfstate.*
 
 # Backups locales
 src_backup_api_original/

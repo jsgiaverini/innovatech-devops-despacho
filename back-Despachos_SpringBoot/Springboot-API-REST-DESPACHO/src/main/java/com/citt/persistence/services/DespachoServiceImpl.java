@@ -22,19 +22,39 @@ public class DespachoServiceImpl implements DespachoService{
 
     @Override
     public Despacho saveDespacho(Despacho despacho) {
+        if (despacho.getIntento() == null) {
+            despacho.setIntento(0);
+        }
+        if (despacho.getDespachado() == null) {
+            despacho.setDespachado(false);
+        }
         return despachoRepository.save(despacho);
     }
 
     @Override
     public Despacho updateDespacho(Long idDespacho, Despacho despacho) throws DespachoNotFoundException {
         return despachoRepository.findById(idDespacho).map(existingDespacho -> {
-            existingDespacho.setFechaDespacho(despacho.getFechaDespacho());
-            existingDespacho.setPatenteCamion(despacho.getPatenteCamion());
-            existingDespacho.setIntento(despacho.getIntento());
-            existingDespacho.setIdCompra(despacho.getIdCompra());
-            existingDespacho.setDireccionCompra(despacho.getDireccionCompra());
-            existingDespacho.setValorCompra(despacho.getValorCompra());
-            existingDespacho.setDespachado(despacho.isDespachado());
+            if (despacho.getFechaDespacho() != null) {
+                existingDespacho.setFechaDespacho(despacho.getFechaDespacho());
+            }
+            if (despacho.getPatenteCamion() != null && !despacho.getPatenteCamion().isBlank()) {
+                existingDespacho.setPatenteCamion(despacho.getPatenteCamion());
+            }
+            if (despacho.getIntento() != null) {
+                existingDespacho.setIntento(despacho.getIntento());
+            }
+            if (despacho.getIdCompra() != null) {
+                existingDespacho.setIdCompra(despacho.getIdCompra());
+            }
+            if (despacho.getDireccionCompra() != null && !despacho.getDireccionCompra().isBlank()) {
+                existingDespacho.setDireccionCompra(despacho.getDireccionCompra());
+            }
+            if (despacho.getValorCompra() != null) {
+                existingDespacho.setValorCompra(despacho.getValorCompra());
+            }
+            if (despacho.getDespachado() != null) {
+                existingDespacho.setDespachado(despacho.getDespachado());
+            }
             return despachoRepository.save(existingDespacho);
         }).orElseThrow(() -> new DespachoNotFoundException("Despacho no encontrado con ID: " + idDespacho));
     }

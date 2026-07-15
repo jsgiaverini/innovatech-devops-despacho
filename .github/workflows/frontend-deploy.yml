@@ -1,4 +1,4 @@
-﻿name: Frontend CI/CD - Build, Push & Deploy ECS
+name: Frontend CI/CD - Build, Push & Deploy ECS
 
 on:
   push:
@@ -7,6 +7,9 @@ on:
     paths:
       - 'front_despacho/**'
       - '.github/workflows/frontend-deploy.yml'
+
+permissions:
+  contents: read
 
 concurrency:
   group: frontend-ecs-deploy-${{ github.ref }}
@@ -25,6 +28,20 @@ jobs:
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: front_despacho/package-lock.json
+
+      - name: Validar frontend
+        working-directory: front_despacho
+        run: |
+          npm ci --no-audit --no-fund
+          npm run lint
+          npm run build
 
       - name: Configurar credenciales AWS
         uses: aws-actions/configure-aws-credentials@v4
@@ -49,6 +66,16 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
+      - name: Escaneo informativo Trivy
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: '${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}'
+          format: table
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
       - name: Desplegar en ECS forzando nueva deployment
         run: |
           aws ecs update-service \
@@ -56,3 +83,12 @@ jobs:
             --service ${{ env.ECS_SERVICE }} \
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
+
+      - name: Esperar estabilidad y comprobar frontend
+        run: |
+          echo "[ECS] Esperando estabilidad de $ECS_SERVICE..."
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --region "$AWS_REGION"
+          ALB_DNS=$(aws elbv2 describe-load-balancers --names alb-innovatech --query 'LoadBalancers[0].DNSName' --output text --region "$AWS_REGION")
+          echo "[SMOKE] Comprobando http://$ALB_DNS/"
+          curl --fail --show-error --silent --retry 6 --retry-delay 10 --retry-all-errors "http://$ALB_DNS/" --output /dev/null
+          echo "[OK] Frontend estable y accesible."

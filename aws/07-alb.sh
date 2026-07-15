@@ -5,7 +5,10 @@ echo "========================================"
 echo "  07 - ALB, Target Groups y Reglas"
 echo "========================================"
 
-source .env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/_functions.sh"
+load_env
 
 # ─── ALB ───
 ALB_ARN=$(aws elbv2 describe-load-balancers --names alb-innovatech --query "LoadBalancers[0].LoadBalancerArn" --output text 2>/dev/null || echo "")
@@ -22,29 +25,31 @@ if [ -z "$ALB_ARN" ]; then
 else
     echo "ALB alb-innovatech ya existe: $ALB_ARN"
 fi
-echo "ALB_ARN=$ALB_ARN" >> .env
+set_env "ALB_ARN" "$ALB_ARN"
 ALB_DNS=$(aws elbv2 describe-load-balancers --load-balancer-arns "$ALB_ARN" --query "LoadBalancers[0].DNSName" --output text)
-echo "ALB_DNS=$ALB_DNS" >> .env
+set_env "ALB_DNS" "$ALB_DNS"
 echo "  DNS: $ALB_DNS"
 
 # ─── Target Groups ───
 declare -A TGS
 TGS["tg-frontend"]="8080:/"
-TGS["tg-back-ventas"]="8080:/api/v1/ventas"
-TGS["tg-back-despachos"]="8081:/api/v1/despachos"
+TGS["tg-back-ventas"]="8080:/actuator/health"
+TGS["tg-back-despachos"]="8081:/actuator/health"
 
 for TG_NAME in "${!TGS[@]}"; do
-    IFS=':' read -r PORT PATH <<< "${TGS[$TG_NAME]}"
+    # No usar PATH como variable: sobrescribiría la ruta de ejecutables y
+    # dejaría inaccesible AWS CLI después de la primera iteración.
+    IFS=':' read -r PORT HEALTH_PATH <<< "${TGS[$TG_NAME]}"
     TG_ARN=$(aws elbv2 describe-target-groups --names "$TG_NAME" --query "TargetGroups[0].TargetGroupArn" --output text 2>/dev/null || echo "")
     if [ -z "$TG_ARN" ]; then
-        echo "Creando target group $TG_NAME (puerto $PORT, health $PATH)..."
+        echo "Creando target group $TG_NAME (puerto $PORT, health $HEALTH_PATH)..."
         TG_ARN=$(aws elbv2 create-target-group \
             --name "$TG_NAME" \
             --protocol HTTP \
             --port "$PORT" \
             --target-type ip \
             --vpc "$VPC_ID" \
-            --health-check-path "$PATH" \
+            --health-check-path "$HEALTH_PATH" \
             --health-check-interval-seconds 30 \
             --health-check-timeout-seconds 5 \
             --healthy-threshold-count 2 \
@@ -53,17 +58,24 @@ for TG_NAME in "${!TGS[@]}"; do
         echo "  TG creado: $TG_ARN"
     else
         echo "  TG $TG_NAME ya existe: $TG_ARN"
+        aws elbv2 modify-target-group \
+            --target-group-arn "$TG_ARN" \
+            --health-check-path "$HEALTH_PATH" \
+            --health-check-interval-seconds 30 \
+            --health-check-timeout-seconds 5 \
+            --healthy-threshold-count 2 \
+            --unhealthy-threshold-count 2 >/dev/null
     fi
     # Store in env with sanitized name
     SAFE_NAME=$(echo "$TG_NAME" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-    echo "${SAFE_NAME}_ARN=$TG_ARN" >> .env
+    set_env "${SAFE_NAME}_ARN" "$TG_ARN"
     echo "  ${SAFE_NAME}_ARN=$TG_ARN"
 done
 
 # ─── Listener HTTP:80 ───
 LISTENER_ARN=$(aws elbv2 describe-listeners --load-balancer-arn "$ALB_ARN" --query "Listeners[?Port==\`80\`].ListenerArn" --output text 2>/dev/null || echo "")
-# Re-read TGs ARNs from env
-source .env
+# Releer los ARN guardados por el ciclo anterior.
+load_env
 
 if [ -z "$LISTENER_ARN" ]; then
     echo "Creando listener HTTP:80..."
@@ -76,15 +88,15 @@ if [ -z "$LISTENER_ARN" ]; then
     echo "Listener creado: $LISTENER_ARN"
 else
     echo "Listener HTTP:80 ya existe: $LISTENER_ARN"
+    aws elbv2 modify-listener \
+        --listener-arn "$LISTENER_ARN" \
+        --default-actions "Type=forward,TargetGroupArn=$TG_FRONTEND_ARN" >/dev/null
 fi
-echo "LISTENER_ARN=$LISTENER_ARN" >> .env
+set_env "LISTENER_ARN" "$LISTENER_ARN"
 
 # ─── Reglas de path-based routing ───
-# Obtener prioridades existentes
-EXISTING_RULES=$(aws elbv2 describe-rules --listener-arn "$LISTENER_ARN" --query "Rules[?Priority!='default'].Priority" --output text)
-
 # Regla 1: /api/v1/ventas* → tg-back-ventas
-RULE_VENTAS=$(aws elbv2 describe-rules --listener-arn "$LISTENER_ARN" --query "Rules[?contains(conditions[0].values[0],'/api/v1/ventas')].RuleArn" --output text 2>/dev/null || echo "")
+RULE_VENTAS=$(aws elbv2 describe-rules --listener-arn "$LISTENER_ARN" --query "Rules[?contains(Conditions[0].Values[0], '/api/v1/ventas')].RuleArn" --output text 2>/dev/null || echo "")
 if [ -z "$RULE_VENTAS" ]; then
     echo "Creando regla /api/v1/ventas*..."
     aws elbv2 create-rule \
@@ -97,7 +109,7 @@ else
 fi
 
 # Regla 2: /api/v1/despachos* → tg-back-despachos
-RULE_DESPACHOS=$(aws elbv2 describe-rules --listener-arn "$LISTENER_ARN" --query "Rules[?contains(conditions[0].values[0],'/api/v1/despachos')].RuleArn" --output text 2>/dev/null || echo "")
+RULE_DESPACHOS=$(aws elbv2 describe-rules --listener-arn "$LISTENER_ARN" --query "Rules[?contains(Conditions[0].Values[0], '/api/v1/despachos')].RuleArn" --output text 2>/dev/null || echo "")
 if [ -z "$RULE_DESPACHOS" ]; then
     echo "Creando regla /api/v1/despachos*..."
     aws elbv2 create-rule \

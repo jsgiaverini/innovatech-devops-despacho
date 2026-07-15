@@ -12,5 +12,5 @@ import org.springframework.context.annotation.Configuration;
                 description = "API REST Demo para gestionar ventas de productos. Lanzamiento CITT Duoc UC Viña del Mar 2025"
         )
 )
-public class OpenApiConfing {
+public class OpenApiConfig {
 }

@@ -23,6 +23,9 @@ public class VentaServiceImpl implements VentaService{
 
     @Override
     public Venta saveVenta(Venta venta) {
+        if (venta.getDespachoGenerado() == null) {
+            venta.setDespachoGenerado(false);
+        }
         return ventaRepository.save(venta);
     }
 

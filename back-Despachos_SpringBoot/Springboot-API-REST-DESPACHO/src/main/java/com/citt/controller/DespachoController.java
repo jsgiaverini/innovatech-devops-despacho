@@ -26,21 +26,21 @@ public class DespachoController {
     @Operation(summary = "Crear un nuevo despacho")
     @PostMapping
     public ResponseEntity<Despacho> crearDespacho(
-            @RequestBody Despacho despacho){
+            @Valid @RequestBody Despacho despacho) {
+        Despacho despachoCreado = despachoService.saveDespacho(despacho);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{idDespacho}")
-                .buildAndExpand(despacho.getIdDespacho())
+                .buildAndExpand(despachoCreado.getIdDespacho())
                 .toUri();
-        despachoService.saveDespacho(despacho);
-        return ResponseEntity.created(location).body(despacho);
+        return ResponseEntity.created(location).body(despachoCreado);
     }
 
     @Operation(summary = "Actualizar un despacho existente")
     @PutMapping("/{idDespacho}")
     public ResponseEntity<Despacho> actualizarDespacho(
             @PathVariable Long idDespacho,
-            @Valid @RequestBody Despacho despacho) throws DespachoNotFoundException {
+            @RequestBody Despacho despacho) throws DespachoNotFoundException {
         Despacho despachoActualizado = despachoService.updateDespacho(idDespacho, despacho);
         return ResponseEntity.ok(despachoActualizado);
     }

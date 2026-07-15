@@ -20,18 +20,18 @@
       "environment": [
         {
           "name": "VENTAS_HOST",
-          "value": "alb-innovatech-1338413519.us-east-1.elb.amazonaws.com"
+          "value": "${ALB_DNS}"
         },
         {
           "name": "DESPACHOS_HOST",
-          "value": "alb-innovatech-1338413519.us-east-1.elb.amazonaws.com"
+          "value": "${ALB_DNS}"
         }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/innovatech/frontend",
-          "awslogs-region": "us-east-1",
+          "awslogs-region": "${AWS_REGION}",
           "awslogs-stream-prefix": "ecs"
         }
       },

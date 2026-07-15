@@ -1,19 +1,25 @@
-# Frontend - Sistema de Despachos Innovatech
+# Frontend de Despachos Innovatech
 
-Aplicación React + Vite para la gestión de órdenes de compra y despachos.
+Aplicación React + Vite para consultar compras, generar despachos y actualizar su estado.
 
-## Desarrollo
+## Desarrollo local
+
+Con los backends ejecutándose en los puertos 8080 y 8081:
 
 ```bash
-npm install
+npm ci
+npm run lint
 npm run dev
 ```
 
+Vite redirige `/api/v1/ventas` a `localhost:8080` y `/api/v1/despachos` a `localhost:8081`.
+
 ## Docker
 
+La forma recomendada es iniciar todo el proyecto desde la raíz:
+
 ```bash
-docker build -t front-despacho .
-docker run -p 80:8080 -e VENTAS_HOST=localhost -e DESPACHOS_HOST=localhost front-despacho
+docker compose up -d --build
 ```
 
-Para documentación completa del proyecto, ver [README.md](../README.md) en la raíz.
+El frontend queda disponible en `http://localhost`.

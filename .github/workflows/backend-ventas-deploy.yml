@@ -1,4 +1,4 @@
-﻿name: Backend Ventas CI/CD - Build, Push & Deploy ECS
+name: Backend Ventas CI/CD - Build, Push & Deploy ECS
 
 on:
   push:
@@ -7,6 +7,9 @@ on:
     paths:
       - 'back-Ventas_SpringBoot/**'
       - '.github/workflows/backend-ventas-deploy.yml'
+
+permissions:
+  contents: read
 
 concurrency:
   group: backend-ventas-ecs-deploy-${{ github.ref }}
@@ -25,6 +28,18 @@ jobs:
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+          cache-dependency-path: back-Ventas_SpringBoot/Springboot-API-REST/pom.xml
+
+      - name: Validar backend
+        working-directory: back-Ventas_SpringBoot/Springboot-API-REST
+        run: ./mvnw -B test
 
       - name: Configurar credenciales AWS
         uses: aws-actions/configure-aws-credentials@v4
@@ -49,6 +64,16 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
+      - name: Escaneo informativo Trivy
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: '${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}'
+          format: table
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
       - name: Desplegar en ECS forzando nueva deployment
         run: |
           aws ecs update-service \
@@ -56,3 +81,12 @@ jobs:
             --service ${{ env.ECS_SERVICE }} \
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
+
+      - name: Esperar estabilidad y comprobar API de ventas
+        run: |
+          echo "[ECS] Esperando estabilidad de $ECS_SERVICE..."
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --region "$AWS_REGION"
+          ALB_DNS=$(aws elbv2 describe-load-balancers --names alb-innovatech --query 'LoadBalancers[0].DNSName' --output text --region "$AWS_REGION")
+          echo "[SMOKE] Comprobando http://$ALB_DNS/api/v1/ventas"
+          curl --fail --show-error --silent --retry 6 --retry-delay 10 --retry-all-errors "http://$ALB_DNS/api/v1/ventas" --output /dev/null
+          echo "[OK] API de ventas estable y accesible."
